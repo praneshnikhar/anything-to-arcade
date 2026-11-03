@@ -48,4 +48,21 @@ describe("createHillClimbModel", () => {
     }
     expect(model.y).toBeCloseTo(model.groundY(model.x), 1);
   });
+
+  it("restarts to a fresh run", () => {
+    const model = createHillClimbModel({
+      heights: Array.from({ length: 32 }, () => 0.4),
+    });
+    for (let i = 0; i < 300; i += 1) {
+      model.step(1 / 60, { throttle: 1, brake: 0 });
+    }
+    expect(model.score).toBeGreaterThan(0);
+
+    model.restart();
+
+    expect(model.x).toBe(0);
+    expect(model.score).toBe(0);
+    expect(model.coins).toBe(0);
+    expect(model.isOver()).toBe(false);
+  });
 });

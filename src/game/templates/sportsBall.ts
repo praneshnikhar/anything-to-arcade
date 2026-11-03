@@ -25,6 +25,7 @@ export interface PenaltyModel {
   kick(power: number, aim: number): void;
   step(dt: number): void;
   resetBall(): void;
+  restart(): void;
   score(): number;
   isOver(): boolean;
 }
@@ -119,6 +120,19 @@ export function createPenaltyModel(): PenaltyModel {
     },
     isOver() {
       return attempts >= MAX_ATTEMPTS;
+    },
+    restart() {
+      distance = 0;
+      height = 0.2;
+      lateral = 0;
+      velocityForward = 0;
+      velocityUp = 0;
+      velocityLateral = 0;
+      flying = false;
+      attempts = 0;
+      goals = 0;
+      lastResult = null;
+      lastKick = null;
     },
   };
 
@@ -224,6 +238,12 @@ export const sportsBallTemplate: GameTemplate = {
       },
       isOver() {
         return model.isOver();
+      },
+      restart() {
+        model.restart();
+        charge = 0;
+        charging = false;
+        resultTimer = 0;
       },
       dispose() {
         ctx.scene.remove(ground);

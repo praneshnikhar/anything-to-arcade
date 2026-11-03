@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import sharp from "sharp";
@@ -9,6 +9,7 @@ import {
   insertAsset,
   insertGeneration,
   listAssets,
+  setGenerationStatus,
   updateAsset,
 } from "@/lib/generations";
 import type { ScenePlan } from "@/lib/planner/schema";
@@ -30,7 +31,6 @@ async function setup() {
     .jpeg()
     .toBuffer();
   // ensure dir exists
-  const { mkdirSync } = await import("node:fs");
   mkdirSync(path.dirname(imagePath), { recursive: true });
   writeFileSync(imagePath, jpg);
 
@@ -80,17 +80,20 @@ function ageAsset(db: Db, assetId: string, ms: number) {
 }
 
 describe("startBuild", () => {
-  it("reuses cached assets without calling tripo", async () => {
+  it("reuses cached assets without calling tripo and re-serves them under the new generation", async () => {
     const { db, dataDir } = await setup();
+    const cachedDir = path.join(dataDir, "generated", "older");
+    mkdirSync(cachedDir, { recursive: true });
+    const cachedPath = path.join(cachedDir, "vehicle.glb");
+    writeFileSync(cachedPath, "cached-glb");
+
     insertAsset(db, {
       id: "cached",
       generationId: "gen1",
       slotId: "vehicle",
       status: "ready",
     });
-    updateAsset(db, "cached", {
-      glbPath: "data/generated/older/vehicle.glb",
-    });
+    updateAsset(db, "cached", { glbPath: cachedPath });
 
     let uploads = 0;
     const tripo = makeTripo({
@@ -112,6 +115,9 @@ describe("startBuild", () => {
     expect(uploads).toBe(0);
     expect(assets.every((asset) => asset.status === "ready")).toBe(true);
     expect(getGeneration(db, "gen1")?.status).toBe("ready");
+    expect(
+      readFileSync(path.join(dataDir, "generated", "gen1", "vehicle.glb")).toString(),
+    ).toBe("cached-glb");
   });
 
   it("crops, uploads, and creates one task per entity", async () => {
@@ -241,6 +247,21 @@ describe("reconcileGeneration", () => {
     expect(view.assets[0].error).toContain("Timed out");
     expect(view.status).toBe("ready");
   });
+
+  it("resumes a build interrupted before any asset row existed", async () => {
+    const { db, dataDir } = await setup();
+    setGenerationStatus(db, "gen1", "building");
+
+    const view = await reconcileGeneration({
+      db,
+      dataDir,
+      tripo: makeTripo(),
+      modelVersion: "v2.5-20250123",
+      generationId: "gen1",
+    });
+
+    expect(view.assets).toHaveLength(1);
+  });
 });
 
 describe("regenerateSlot", () => {
@@ -251,6 +272,35 @@ describe("regenerateSlot", () => {
         id: `a${i}`,
         generationId: "gen1",
         slotId: "vehicle",
+        status: "placeholder",
+      });
+    }
+
+    await expect(
+      regenerateSlot({
+        db,
+        dataDir,
+        tripo: makeTripo(),
+        modelVersion: "v2.5-20250123",
+        generationId: "gen1",
+        slotId: "vehicle",
+      }),
+    ).rejects.toBeInstanceOf(RegenerationLimitError);
+  });
+
+  it("caps regeneration across slots", async () => {
+    const { db, dataDir } = await setup();
+    for (const slot of ["a", "b", "c"]) {
+      insertAsset(db, {
+        id: `${slot}-init`,
+        generationId: "gen1",
+        slotId: slot,
+        status: "placeholder",
+      });
+      insertAsset(db, {
+        id: `${slot}-regen`,
+        generationId: "gen1",
+        slotId: slot,
         status: "placeholder",
       });
     }

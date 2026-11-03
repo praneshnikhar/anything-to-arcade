@@ -19,7 +19,7 @@ export default function BuildProgress({
 }: {
   view: GenerationView;
   onRegenerate: (slotId: string) => void;
-  regenerationsLeft: Record<string, number>;
+  regenerationsLeft: number;
 }) {
   const total = view.assets.length || 1;
   const done = view.assets.filter(
@@ -53,14 +53,11 @@ export default function BuildProgress({
             <button
               className="mini"
               disabled={
-                view.status !== "ready" ||
-                (regenerationsLeft[asset.slotId] ?? 0) <= 0
+                view.status !== "ready" || regenerationsLeft <= 0
               }
               onClick={() => onRegenerate(asset.slotId)}
             >
-              Regenerate{regenerationsLeft[asset.slotId] !== undefined
-                ? ` (${regenerationsLeft[asset.slotId]})`
-                : ""}
+              Regenerate ({regenerationsLeft})
             </button>
           </li>
         ))}

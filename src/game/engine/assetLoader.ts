@@ -30,6 +30,12 @@ export function normalizeObject(
   object.scale.setScalar(targetHeight / height);
 
   box.setFromObject(object);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  object.position.x -= center.x;
+  object.position.z -= center.z;
+
+  box.setFromObject(object);
   object.position.y -= box.min.y;
 
   object.traverse((child) => {
@@ -64,6 +70,18 @@ export async function loadAssets(
     }
 
     map.set(asset.slotId, createPlaceholder(role, plan.palette));
+  }
+
+  // Placeholder for every eligible slot the build could not produce.
+  for (const entity of plan.entities) {
+    if (!map.has(entity.slotId) && entity.useForGeneration) {
+      map.set(entity.slotId, createPlaceholder(entity.role, plan.palette));
+    }
+  }
+
+  // A plan with nothing generatable (e.g. only terrain) still gets a scene.
+  if (map.size === 0) {
+    map.set("hero", createPlaceholder("hero", plan.palette));
   }
 
   return map;

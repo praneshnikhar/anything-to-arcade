@@ -24,12 +24,13 @@ export async function GET(
   }
 
   try {
-    const view = await reconcileGeneration({
-      db: services.db,
-      dataDir: services.dataDir,
-      tripo: services.tripo,
-      generationId: id,
-    });
+      const view = await reconcileGeneration({
+        db: services.db,
+        dataDir: services.dataDir,
+        tripo: services.tripo,
+        modelVersion: services.env.tripoModelVersion,
+        generationId: id,
+      });
     return Response.json(view);
   } catch (error) {
     return errorJson(

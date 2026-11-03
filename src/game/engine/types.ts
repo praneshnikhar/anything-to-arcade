@@ -20,6 +20,7 @@ export interface TemplateContext {
 
 export interface TemplateInstance {
   update(dt: number): void;
+  restart(): void;
   score(): number;
   isOver(): boolean;
   dispose(): void;

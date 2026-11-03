@@ -51,12 +51,14 @@ export async function GET(
     const contentType =
       MIME_TYPES[path.extname(filePath).toLowerCase()] ??
       "application/octet-stream";
-    return new Response(new Uint8Array(data), {
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=31536000, immutable",
-      },
-    });
+    const headers: Record<string, string> = { "Content-Type": contentType };
+    if (contentType === "model/gltf-binary") {
+      // Regeneration overwrites the same path — never serve a stale GLB.
+      headers["Cache-Control"] = "no-store";
+    } else {
+      headers["Cache-Control"] = "public, max-age=31536000, immutable";
+    }
+    return new Response(new Uint8Array(data), { headers });
   } catch {
     return errorJson("Not found.", 404);
   }

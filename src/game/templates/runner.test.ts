@@ -50,4 +50,17 @@ describe("createRunnerModel", () => {
     expect(model.speed).toBeGreaterThan(startSpeed);
     expect(model.score()).toBeGreaterThan(0);
   });
+
+  it("restarts to a fresh run", () => {
+    const model = createRunnerModel();
+    model.spawnObstacleAt(0.2);
+    model.step(1 / 60, { jump: false });
+    expect(model.isOver()).toBe(true);
+
+    model.restart();
+
+    expect(model.isOver()).toBe(false);
+    expect(model.x).toBe(0);
+    expect(model.obstacles).toHaveLength(0);
+  });
 });

@@ -97,9 +97,20 @@ export function normalizePlan(plan: unknown): ScenePlan {
         .slice(0, 6)
     : [];
 
-  const chosenGenre: Genre = isGenre(source.chosenGenre)
+  const confidence = clamp01(source.confidence);
+  let genreReason =
+    typeof source.genreReason === "string" && source.genreReason.trim()
+      ? source.genreReason.trim()
+      : "No reason given.";
+
+  let chosenGenre: Genre = isGenre(source.chosenGenre)
     ? source.chosenGenre
     : "diorama_viewer";
+
+  if (chosenGenre !== "diorama_viewer" && confidence < 0.5) {
+    genreReason = `We weren't confident enough that a game fits, so this became a 3D diorama. (${genreReason})`;
+    chosenGenre = "diorama_viewer";
+  }
 
   return {
     sceneType:
@@ -107,10 +118,7 @@ export function normalizePlan(plan: unknown): ScenePlan {
         ? source.sceneType.trim()
         : "unknown",
     chosenGenre,
-    genreReason:
-      typeof source.genreReason === "string" && source.genreReason.trim()
-        ? source.genreReason.trim()
-        : "No reason given.",
+    genreReason,
     confidence: clamp01(source.confidence),
     entities,
     palette: palette.length > 0 ? palette : [...DEFAULT_PALETTE],

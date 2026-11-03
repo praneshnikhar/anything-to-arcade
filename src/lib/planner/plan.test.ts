@@ -62,6 +62,28 @@ describe("normalizePlan", () => {
     expect(plan.entities[0].bbox).toEqual({ x: 0, y: 0.5, w: 1, h: 0.2 });
   });
 
+  it("demotes a low-confidence game genre to the diorama", () => {
+    const plan = normalizePlan({
+      sceneType: "x",
+      chosenGenre: "hill_climb",
+      genreReason: "hills",
+      confidence: 0.2,
+      entities: [
+        {
+          slotId: "a",
+          label: "a",
+          role: "scenery",
+          bbox: { x: 0, y: 0, w: 0.1, h: 0.1 },
+          useForGeneration: true,
+        },
+      ],
+      palette: [],
+    });
+
+    expect(plan.chosenGenre).toBe("diorama_viewer");
+    expect(plan.genreReason).toContain("confident");
+  });
+
   it("caps entities at six and forces terrain out of generation", () => {
     const entities = Array.from({ length: 8 }, (_, i) => ({
       slotId: `e${i}`,

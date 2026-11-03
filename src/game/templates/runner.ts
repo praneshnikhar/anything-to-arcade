@@ -24,6 +24,7 @@ export interface RunnerModel {
   step(dt: number, input: { jump: boolean }): void;
   score(): number;
   isOver(): boolean;
+  restart(): void;
 }
 
 export function createRunnerModel(seed = 1): RunnerModel {
@@ -102,6 +103,16 @@ export function createRunnerModel(seed = 1): RunnerModel {
     isOver() {
       return over;
     },
+    restart() {
+      x = 0;
+      y = 0;
+      velocityY = 0;
+      speed = START_SPEED;
+      grounded = true;
+      over = false;
+      nextSpawn = 10;
+      obstacles.length = 0;
+    },
   };
 }
 
@@ -165,9 +176,12 @@ export const runnerTemplate: GameTemplate = {
         ctx.scene.add(mesh);
         obstacleMeshes.push(mesh);
       }
-      model.obstacles.forEach((obstacle, index) => {
-        const mesh = obstacleMeshes[index];
-        if (!mesh) return;
+      obstacleMeshes.forEach((mesh, index) => {
+        const obstacle = model.obstacles[index];
+        if (!obstacle) {
+          mesh.visible = false;
+          return;
+        }
         mesh.position.x = obstacle.x;
         mesh.visible = !obstacle.passed;
       });
@@ -192,6 +206,11 @@ export const runnerTemplate: GameTemplate = {
       },
       isOver() {
         return model.isOver();
+      },
+      restart() {
+        model.restart();
+        for (const mesh of obstacleMeshes) mesh.visible = false;
+        if (hero) hero.position.set(0, 0.35, 0);
       },
       dispose() {
         ctx.scene.remove(ground);

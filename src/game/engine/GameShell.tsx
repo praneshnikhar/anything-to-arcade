@@ -23,6 +23,7 @@ export default function GameShell({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const scoreRef = useRef<HTMLSpanElement | null>(null);
   const overRef = useRef<HTMLDivElement | null>(null);
+  const restartRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     const host = hostRef.current;
@@ -63,6 +64,11 @@ export default function GameShell({
       palette: plan.palette,
       heightmap,
     });
+
+    restartRef.current = () => {
+      instance.restart();
+      if (overRef.current) overRef.current.style.display = "none";
+    };
 
     let raf = 0;
     let last = performance.now();
@@ -124,7 +130,10 @@ export default function GameShell({
         Score <span ref={scoreRef}>0</span>
       </div>
       <div className="game-over" ref={overRef} style={{ display: "none" }}>
-        Run over
+        <span>Run over</span>
+        <button className="primary" onClick={() => restartRef.current()}>
+          Play again
+        </button>
       </div>
     </div>
   );

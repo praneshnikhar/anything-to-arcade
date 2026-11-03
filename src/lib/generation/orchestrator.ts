@@ -23,7 +23,7 @@ import {
 } from "./state";
 
 const MAX_GENERATED_ENTITIES = 5;
-const MAX_ASSETS_PER_SLOT = 4; // 1 initial + 3 regenerations
+const MAX_REGENERATIONS_PER_GENERATION = 3;
 const HERO_ROLES = new Set(["hero", "vehicle", "ball"]);
 const TERMINAL_TASK_STATUSES = new Set([
   "failed",
@@ -78,8 +78,19 @@ async function createOrReuseAsset(
     ? undefined
     : findCachedAsset(db, generation.imageHash, entity.slotId);
   if (cached) {
-    updateAsset(db, assetId, { status: "ready", glbPath: cached });
-    return;
+    try {
+      const bytes = await readFile(cached);
+      const glbPath = await saveGeneratedGlb(
+        deps.dataDir,
+        generation.id,
+        entity.slotId,
+        bytes,
+      );
+      updateAsset(db, assetId, { status: "ready", glbPath });
+      return;
+    } catch {
+      // Cached file is gone or unreadable — fall through to a fresh generation.
+    }
   }
 
   try {
@@ -142,15 +153,36 @@ export async function startBuild(
 }
 
 export async function reconcileGeneration(
-  input: OrchestratorDeps & { generationId: string; now?: number },
+  input: OrchestratorDeps & {
+    generationId: string;
+    now?: number;
+    modelVersion?: string;
+  },
 ): Promise<GenerationView> {
-  const generation = getGeneration(input.db, input.generationId);
+  let generation = getGeneration(input.db, input.generationId);
   if (!generation) {
     throw new Error(`Generation ${input.generationId} not found`);
   }
 
   const now = input.now ?? Date.now();
   const doFetch = input.fetchImpl ?? fetch;
+
+  // Recover a build interrupted before any asset row existed.
+  if (
+    generation.status === "building" &&
+    listAssets(input.db, generation.id).length === 0 &&
+    input.modelVersion
+  ) {
+    await startBuild({
+      db: input.db,
+      dataDir: input.dataDir,
+      tripo: input.tripo,
+      fetchImpl: input.fetchImpl,
+      modelVersion: input.modelVersion,
+      generationId: generation.id,
+    });
+    generation = getGeneration(input.db, generation.id) ?? generation;
+  }
 
   for (const asset of listAssets(input.db, generation.id)) {
     if (isTerminalAsset(asset.status)) continue;
@@ -179,7 +211,9 @@ export async function reconcileGeneration(
           continue;
         }
         updateAsset(input.db, asset.id, { status: "downloading" });
-        const response = await doFetch(task.modelUrl);
+        const response = await doFetch(task.modelUrl, {
+          signal: AbortSignal.timeout(120_000),
+        });
         if (!response.ok) {
           throw new Error(`Model download failed: HTTP ${response.status}`);
         }
@@ -252,10 +286,10 @@ export async function regenerateSlot(
     throw new Error(`Unknown slot: ${input.slotId}`);
   }
 
-  const existing = listAssets(input.db, generation.id).filter(
-    (asset) => asset.slotId === input.slotId,
-  );
-  if (existing.length >= MAX_ASSETS_PER_SLOT) {
+  const existing = listAssets(input.db, generation.id);
+  const distinctSlots = new Set(existing.map((asset) => asset.slotId)).size;
+  const regenerations = existing.length - distinctSlots;
+  if (regenerations >= MAX_REGENERATIONS_PER_GENERATION) {
     throw new RegenerationLimitError();
   }
 

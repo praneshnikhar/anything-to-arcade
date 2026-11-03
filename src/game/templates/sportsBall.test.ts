@@ -48,4 +48,23 @@ describe("createPenaltyModel", () => {
     expect(model.isOver()).toBe(true);
     expect(model.attempts).toBe(5);
   });
+
+  it("restarts a finished session", () => {
+    const model = createPenaltyModel();
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      model.kick(0.7, 0);
+      for (let i = 0; i < 600 && !model.lastResult; i += 1) {
+        model.step(1 / 120);
+      }
+      model.resetBall();
+    }
+    expect(model.isOver()).toBe(true);
+
+    model.restart();
+
+    expect(model.isOver()).toBe(false);
+    expect(model.attempts).toBe(0);
+    expect(model.goals).toBe(0);
+    expect(model.lastResult).toBeNull();
+  });
 });

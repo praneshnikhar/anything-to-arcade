@@ -18,7 +18,6 @@ import type { ScenePlan } from "@/lib/planner/schema";
 type Phase = "idle" | "planning" | "planned" | "building" | "ready";
 
 const POLL_MS = 3000;
-const REGEN_PER_SLOT = 3;
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : "Something went wrong.";
@@ -32,7 +31,19 @@ export default function HomePage() {
   const [plan, setPlan] = useState<ScenePlan | null>(null);
   const [view, setView] = useState<GenerationView | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [regenLeft, setRegenLeft] = useState<Record<string, number>>({});
+  const [regenLeft, setRegenLeft] = useState(3);
+  const [setupMissing, setSetupMissing] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/health")
+      .then((response) => response.json())
+      .then((body: { ok?: boolean; missing?: string[] }) => {
+        if (!body.ok && body.missing?.length) setSetupMissing(body.missing);
+      })
+      .catch(() => {
+        // Health probe failing should never block the app.
+      });
+  }, []);
 
   // Debug entry: /?debugTemplate=hill_climb mounts a template with placeholders.
   useEffect(() => {
@@ -97,17 +108,6 @@ export default function HomePage() {
 
   useEffect(() => stopPolling, [stopPolling]);
 
-  useEffect(() => {
-    if (!view) return;
-    setRegenLeft((previous) => {
-      const next = { ...previous };
-      for (const asset of view.assets) {
-        if (next[asset.slotId] === undefined) next[asset.slotId] = REGEN_PER_SLOT;
-      }
-      return next;
-    });
-  }, [view]);
-
   const poll = useCallback(
     (id: string) => {
       stopPolling();
@@ -143,7 +143,7 @@ export default function HomePage() {
       setView(null);
       setPlan(null);
       setGenerationId(null);
-      setRegenLeft({});
+      setRegenLeft(3);
       setFile(nextFile);
 
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -158,6 +158,10 @@ export default function HomePage() {
         setPlan(result.plan);
         setPhase("planned");
       } catch (planError) {
+        if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+        setImageUrl(null);
+        setFile(null);
         setError(messageOf(planError));
         setPhase("idle");
       }
@@ -183,10 +187,7 @@ export default function HomePage() {
     setError(null);
     try {
       await postRegenerate(generationId, slotId);
-      setRegenLeft((previous) => ({
-        ...previous,
-        [slotId]: Math.max(0, (previous[slotId] ?? REGEN_PER_SLOT) - 1),
-      }));
+      setRegenLeft((previous) => Math.max(0, previous - 1));
       setPhase("building");
       poll(generationId);
     } catch (regenerateError) {
@@ -205,7 +206,7 @@ export default function HomePage() {
     setPlan(null);
     setView(null);
     setError(null);
-    setRegenLeft({});
+    setRegenLeft(3);
   };
 
   return (
@@ -224,6 +225,14 @@ export default function HomePage() {
           Gallery
         </a>
       </header>
+
+      {setupMissing.length > 0 ? (
+        <div className="setup-banner">
+          Add <code>{setupMissing.join(" and ")}</code> to{" "}
+          <code>.env.local</code> (see <code>.env.example</code>), then restart
+          the dev server.
+        </div>
+      ) : null}
 
       {error ? (
         <div className="toast" role="alert">

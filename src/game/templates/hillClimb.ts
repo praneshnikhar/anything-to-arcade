@@ -31,6 +31,7 @@ export interface HillClimbModel {
   groundY(x: number): number;
   step(dt: number, input: HillClimbInput): void;
   isOver(): boolean;
+  restart(): void;
 }
 
 export function createHillClimbModel({
@@ -138,6 +139,19 @@ export function createHillClimbModel({
     },
     isOver() {
       return over;
+    },
+    restart() {
+      x = 0;
+      y = groundY(0);
+      velocityY = 0;
+      speed = 0;
+      score = 0;
+      collectedCoins = 0;
+      over = false;
+      grounded = true;
+      for (const coin of coinStates) {
+        coin.collected = false;
+      }
     },
   };
 }
@@ -248,6 +262,10 @@ export const hillClimbTemplate: GameTemplate = {
       },
       isOver() {
         return model.isOver();
+      },
+      restart() {
+        model.restart();
+        if (vehicle) vehicle.position.set(0, model.y, 0);
       },
       dispose() {
         ctx.scene.remove(terrain);

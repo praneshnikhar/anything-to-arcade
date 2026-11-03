@@ -250,7 +250,7 @@ describe("GET /api/gallery", () => {
     await seedGeneration(services, "gen2");
     const { GET } = await import("./gallery/route");
 
-    const response = await GET();
+    const response = await GET(new Request("http://localhost/api/gallery"));
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -286,5 +286,39 @@ describe("GET /api/files/[...path]", () => {
     });
 
     expect(response.status).toBe(404);
+  });
+
+  it("serves regenerated GLBs without long-lived caching", async () => {
+    const services = await makeServices();
+    mkdirSync(path.join(services.dataDir, "generated", "gen1"), {
+      recursive: true,
+    });
+    writeFileSync(
+      path.join(services.dataDir, "generated", "gen1", "vehicle.glb"),
+      Buffer.from("glb"),
+    );
+    const { GET } = await import("./files/[...path]/route");
+
+    const response = await GET(new Request("http://localhost/api/files"), {
+      params: Promise.resolve({
+        path: ["generated", "gen1", "vehicle.glb"],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+  });
+});
+
+describe("GET /api/health", () => {
+  it("reports missing keys without throwing", async () => {
+    const { GET } = await import("./health/route");
+
+    const response = await GET(new Request("http://localhost/api/health"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(false);
+    expect(body.missing).toContain("TRIPO_API_KEY");
   });
 });

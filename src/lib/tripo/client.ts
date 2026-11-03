@@ -36,6 +36,7 @@ export function createTripoClient(opts: {
   async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await doFetch(`${baseUrl}${path}`, {
       ...init,
+      signal: AbortSignal.timeout(60_000),
       headers: {
         Authorization: `Bearer ${opts.apiKey}`,
         ...((init?.headers as Record<string, string> | undefined) ?? {}),
