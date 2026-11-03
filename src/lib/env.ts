@@ -32,7 +32,7 @@ export function getEnv(
     tripoApiKey: source.TRIPO_API_KEY!.trim(),
     geminiApiKey: source.GEMINI_API_KEY!.trim(),
     tripoModelVersion: source.TRIPO_MODEL_VERSION?.trim() || "v2.5-20250123",
-    geminiModel: source.GEMINI_MODEL?.trim() || "gemini-2.5-flash",
+    geminiModel: source.GEMINI_MODEL?.trim() || "gemini-flash-lite-latest",
     dataDir: source.DATA_DIR?.trim() || "./data",
   };
 }

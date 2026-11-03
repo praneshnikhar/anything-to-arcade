@@ -25,7 +25,7 @@ describe("getEnv", () => {
       tripoApiKey: "t",
       geminiApiKey: "g",
       tripoModelVersion: "v2.5-20250123",
-      geminiModel: "gemini-2.5-flash",
+      geminiModel: "gemini-flash-lite-latest",
       dataDir: "./data",
     });
   });
