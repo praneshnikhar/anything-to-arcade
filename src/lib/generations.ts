@@ -196,3 +196,10 @@ export function findCachedAsset(
     .get(imageHash, slotId) as { glb_path: string } | undefined;
   return record?.glb_path;
 }
+
+export function listGenerations(db: Db, limit = 50): GenerationRow[] {
+  const records = db
+    .prepare("SELECT * FROM generations ORDER BY created_at DESC LIMIT ?")
+    .all(limit) as GenerationRecord[];
+  return records.map(toGeneration);
+}

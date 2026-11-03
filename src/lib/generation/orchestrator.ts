@@ -43,8 +43,11 @@ export interface OrchestratorDeps {
   db: Db;
   dataDir: string;
   tripo: TripoClient;
-  modelVersion: string;
   fetchImpl?: typeof fetch;
+}
+
+export interface BuildDeps extends OrchestratorDeps {
+  modelVersion: string;
 }
 
 function faceLimitFor(role: string): number {
@@ -56,7 +59,7 @@ function parsePlan(generation: GenerationRow): ScenePlan {
 }
 
 async function createOrReuseAsset(
-  deps: OrchestratorDeps,
+  deps: BuildDeps,
   generation: GenerationRow,
   entity: PlanEntity,
   imageBuf: Buffer,
@@ -110,7 +113,7 @@ function finalizeIfDone(db: Db, generationId: string): void {
 }
 
 export async function startBuild(
-  input: OrchestratorDeps & { generationId: string },
+  input: BuildDeps & { generationId: string },
 ): Promise<void> {
   const generation = getGeneration(input.db, input.generationId);
   if (!generation) {
@@ -234,7 +237,7 @@ export async function reconcileGeneration(
 }
 
 export async function regenerateSlot(
-  input: OrchestratorDeps & { generationId: string; slotId: string },
+  input: BuildDeps & { generationId: string; slotId: string },
 ): Promise<void> {
   const generation = getGeneration(input.db, input.generationId);
   if (!generation) {

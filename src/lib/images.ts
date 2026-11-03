@@ -7,6 +7,7 @@ const ALLOWED_MIMES = new Set([
   "image/gif",
 ]);
 const MAX_BYTES = 10_000_000;
+export const MAX_UPLOAD_BYTES = MAX_BYTES;
 const MIN_SIDE = 32;
 
 export type UploadCheck = { ok: true } | { ok: false; reason: string };
