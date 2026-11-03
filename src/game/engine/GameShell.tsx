@@ -57,6 +57,7 @@ export default function GameShell({
       plan,
       assets,
       scene,
+      camera,
       input,
       palette: plan.palette,
       heightmap,

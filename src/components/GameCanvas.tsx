@@ -39,7 +39,7 @@ export default function GameCanvas({
   imageUrl,
 }: {
   view: GenerationView;
-  imageUrl: string;
+  imageUrl?: string;
 }) {
   const [assets, setAssets] = useState<Map<string, THREE.Object3D> | null>(
     null,
@@ -62,7 +62,7 @@ export default function GameCanvas({
 
   useEffect(() => {
     let cancelled = false;
-    if (view.plan.chosenGenre !== "hill_climb") {
+    if (view.plan.chosenGenre !== "hill_climb" || !imageUrl) {
       setHeightmap(undefined);
       return;
     }

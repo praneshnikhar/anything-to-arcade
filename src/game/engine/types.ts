@@ -11,6 +11,7 @@ export interface TemplateContext {
   plan: ScenePlan;
   assets: Map<string, THREE.Object3D>;
   scene: THREE.Scene;
+  camera: THREE.PerspectiveCamera;
   input: InputState;
   palette: string[];
   heightmap?: number[];

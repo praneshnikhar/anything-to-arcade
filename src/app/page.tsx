@@ -34,6 +34,57 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [regenLeft, setRegenLeft] = useState<Record<string, number>>({});
 
+  // Debug entry: /?debugTemplate=hill_climb mounts a template with placeholders.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const debug = params.get("debugTemplate");
+    if (!debug) return;
+    const allowed = [
+      "hill_climb",
+      "sports_ball",
+      "endless_runner",
+      "diorama_viewer",
+    ] as const;
+    if (!allowed.includes(debug as (typeof allowed)[number])) return;
+
+    const debugPlan: ScenePlan = {
+      sceneType: "debug scene",
+      chosenGenre: debug as ScenePlan["chosenGenre"],
+      genreReason: "Debug template run with placeholder assets.",
+      confidence: 1,
+      entities: [
+        {
+          slotId: "vehicle",
+          label: "debug car",
+          role: "vehicle",
+          bbox: { x: 0.3, y: 0.4, w: 0.2, h: 0.2 },
+          useForGeneration: true,
+        },
+        {
+          slotId: "obstacle_1",
+          label: "debug cone",
+          role: "obstacle",
+          bbox: { x: 0.6, y: 0.5, w: 0.1, h: 0.1 },
+          useForGeneration: true,
+        },
+      ],
+      palette: ["#dc2626", "#4d7c0f", "#eab308", "#0f172a"],
+    };
+    setPlan(debugPlan);
+    setGenerationId("debug");
+    setView({
+      id: "debug",
+      status: "ready",
+      genre: debugPlan.chosenGenre,
+      plan: debugPlan,
+      assets: debugPlan.entities.map((entity) => ({
+        slotId: entity.slotId,
+        status: "placeholder",
+      })),
+    });
+    setPhase("ready");
+  }, []);
+
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const objectUrlRef = useRef<string | null>(null);
 
@@ -208,8 +259,8 @@ export default function HomePage() {
             />
           ) : null}
 
-          {phase === "ready" && view && imageUrl ? (
-            <GameCanvas view={view} imageUrl={imageUrl} />
+          {phase === "ready" && view ? (
+            <GameCanvas view={view} imageUrl={imageUrl ?? undefined} />
           ) : null}
 
           {phase === "ready" ? (

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { GameTemplate } from "@/game/engine/types";
 import type { Genre } from "@/lib/planner/genres";
+import { hillClimbTemplate } from "./hillClimb";
 
 /**
  * Temporary stand-in for every genre until Tasks 10–13 replace entries.
@@ -39,7 +40,7 @@ const stubTemplate: GameTemplate = {
 };
 
 export const templates: Record<Genre, GameTemplate> = {
-  hill_climb: stubTemplate,
+  hill_climb: hillClimbTemplate,
   sports_ball: stubTemplate,
   endless_runner: stubTemplate,
   diorama_viewer: stubTemplate,
