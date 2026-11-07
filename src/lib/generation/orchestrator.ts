@@ -45,6 +45,10 @@ export interface OrchestratorDeps {
   dataDir: string;
   tripo: TripoClient;
   fetchImpl?: typeof fetch;
+  generateMesh?: (
+    crop: Buffer,
+    options: { role: string; palette: string[] },
+  ) => Promise<Buffer>;
 }
 
 export interface BuildDeps extends OrchestratorDeps {
@@ -106,6 +110,22 @@ async function createOrReuseAsset(
   try {
     updateAsset(db, assetId, { status: "uploading" });
     const crop = await cropEntity(imageBuf, entity.bbox);
+
+    if (deps.generateMesh) {
+      const glb = await deps.generateMesh(crop, {
+        role: entity.role,
+        palette: parsePlan(generation).palette,
+      });
+      const glbPath = await saveGeneratedGlb(
+        deps.dataDir,
+        generation.id,
+        entity.slotId,
+        glb,
+      );
+      updateAsset(db, assetId, { status: "ready", glbPath });
+      return;
+    }
+
     const { fileToken } = await tripo.uploadImage(
       crop,
       `${entity.slotId}.jpg`,
@@ -230,6 +250,7 @@ export async function reconcileGeneration(
       dataDir: input.dataDir,
       tripo: input.tripo,
       fetchImpl: input.fetchImpl,
+      generateMesh: input.generateMesh,
       modelVersion: input.modelVersion,
       generationId: generation.id,
     });

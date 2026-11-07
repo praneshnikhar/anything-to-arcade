@@ -281,6 +281,37 @@ describe("reconcileGeneration", () => {
     expect(view.status).toBe("ready");
   });
 
+  it("generates meshes locally via the procedural backend without calling tripo", async () => {
+    const { db, dataDir } = await setup();
+    let uploads = 0;
+    const tripo = makeTripo({
+      uploadImage: async () => {
+        uploads += 1;
+        return { fileToken: "ft" };
+      },
+    });
+    const generateMesh = async () => Buffer.from("glTF-fake");
+
+    await startBuild({
+      db,
+      dataDir,
+      tripo,
+      modelVersion: "v2.5-20250123",
+      generationId: "gen1",
+      generateMesh,
+    });
+
+    expect(uploads).toBe(0);
+    const [asset] = listAssets(db, "gen1");
+    expect(asset.status).toBe("ready");
+    expect(getGeneration(db, "gen1")?.status).toBe("ready");
+    expect(
+      readFileSync(
+        path.join(dataDir, "generated", "gen1", "vehicle.glb"),
+      ).toString(),
+    ).toBe("glTF-fake");
+  });
+
   it("resumes a build interrupted before any asset row existed", async () => {
     const { db, dataDir } = await setup();
     setGenerationStatus(db, "gen1", "building");

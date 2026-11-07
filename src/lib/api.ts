@@ -4,6 +4,7 @@ import { getEnv, MissingEnvError, type Env } from "./env";
 import { createGeminiAdapter } from "./planner/adapter";
 import { planFromImage } from "./planner/plan";
 import type { ScenePlan } from "./planner/schema";
+import { generateMesh } from "./procedural/generator";
 import { createTripoClient } from "./tripo/client";
 import type { TripoClient } from "./tripo/types";
 
@@ -13,6 +14,10 @@ export interface Services {
   env: Env;
   dataDir: string;
   planImage: (imagePath: string) => Promise<ScenePlan>;
+  generateMesh?: (
+    crop: Buffer,
+    options: { role: string; palette: string[] },
+  ) => Promise<Buffer>;
 }
 
 let cached: Services | null = null;
@@ -32,6 +37,7 @@ export function getServices(): Services {
     env,
     dataDir,
     planImage: (imagePath) => planFromImage({ imagePath, adapter }),
+    generateMesh: env.tripoBackend === "procedural" ? generateMesh : undefined,
   };
   return cached;
 }

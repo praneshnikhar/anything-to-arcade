@@ -38,6 +38,7 @@ export async function POST(request: Request): Promise<Response> {
       db: services.db,
       dataDir: services.dataDir,
       tripo: services.tripo,
+      generateMesh: services.generateMesh,
       modelVersion: services.env.tripoModelVersion,
       generationId: body.generationId,
       slotId: body.slotId,

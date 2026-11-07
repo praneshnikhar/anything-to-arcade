@@ -28,6 +28,7 @@ export async function GET(
         db: services.db,
         dataDir: services.dataDir,
         tripo: services.tripo,
+        generateMesh: services.generateMesh,
         modelVersion: services.env.tripoModelVersion,
         generationId: id,
       });

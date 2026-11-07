@@ -52,6 +52,7 @@ async function makeServices(): Promise<Services> {
       tripoModelVersion: "v2.5-20250123",
       geminiModel: "gemini-flash-lite-latest",
       dataDir,
+      tripoBackend: "api",
     },
     planImage: async () => PLAN_FIXTURE,
   };
@@ -160,7 +161,7 @@ describe("POST /api/plan", () => {
 
     expect(response.status).toBe(503);
     const body = await response.json();
-    expect(body.error).toContain("TRIPO_API_KEY");
+    expect(body.error).toContain("GEMINI_API_KEY");
   });
 
   it("stores the generation and returns the plan", async () => {
@@ -319,6 +320,6 @@ describe("GET /api/health", () => {
 
     expect(response.status).toBe(200);
     expect(body.ok).toBe(false);
-    expect(body.missing).toContain("TRIPO_API_KEY");
+    expect(body.missing).toContain("GEMINI_API_KEY");
   });
 });

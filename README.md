@@ -35,6 +35,7 @@ image ──► planner (Gemini Flash) ──► ScenePlan JSON
 ```
 
 - **Sparse scenes are first-class.** A football on grass becomes a penalty game; the template adds goalposts procedurally.
+- **Two generation backends.** `TRIPO_BACKEND=procedural` (default) extrudes each detected entity's silhouette into a 3D cutout locally — free, instant, no key, works on any machine. `TRIPO_BACKEND=api` calls the Tripo API for photoreal meshes (needs a key + credits).
 - **Every result is identified, not chosen by hand.** The plan screen shows the pick and its reason before any credits are spent.
 - **Credit safety:** assets are cached by image hash + slot, plan re-rolls are free, and each slot can be regenerated at most 3 times (enforced server-side).
 
@@ -62,6 +63,7 @@ Debug a template without credits: `/?debugTemplate=hill_climb` (also `sports_bal
 
 - `src/lib/planner/` — Gemini adapter, JSON repair/normalization, genre fallback rules
 - `src/lib/tripo/` — Tripo client (upload, image-to-model, task polling)
+- `src/lib/procedural/` — local silhouette → 3D cutout generator (mask, outline, GLB export)
 - `src/lib/generation/` — fan-out orchestrator, cache reuse, timeouts, placeholder policy
 - `src/app/api/` — plan / build / regenerate / generations / gallery / files routes
 - `src/game/` — engine shell, asset normalization, templates
