@@ -44,6 +44,16 @@ Base: `https://api.tripo3d.ai/v2/openapi` · auth: `Authorization: Bearer <key>`
 - `POST /api/regenerate` → three allowed attempts, fourth answers **409**.
 - Gallery lists runs with image thumbnails.
 
+## Generation quality levers (added 2026-11-07)
+
+- Every `image_to_model` task sends `orientation: "align_image"`, `enable_image_autofix: true`, `texture_alignment: "original_image"` for faithful, aligned meshes.
+- `face_limit` is 40k for hero/vehicle/ball and 20k for props/scenery.
+- Entities with a bounding box smaller than ~0.8% of the image are skipped (avoids the content-policy "coins close-up" class of waste).
+- Crops are padded 10% so the model doesn't clip subjects.
+- A failed generation retries once with `smart_low_poly` + halved `face_limit` before falling back to a placeholder.
+- Renderer uses ACES filmic tone mapping + `RoomEnvironment` IBL so PBR assets read correctly.
+- Model version is configurable via `TRIPO_MODEL_VERSION` (default `v2.5-20250123`); H3 `v3.0`/`v3.1` and P1 exist in the docs for A/B once credits allow.
+
 ## Smoke commands
 
 ```bash
