@@ -27,7 +27,8 @@ export interface AssetRow {
   status: AssetStatus;
   tripoTaskId?: string;
   glbPath?: string;
-  error?: string;
+  error?: string | null;
+  retries: number;
   createdAt: number;
 }
 
@@ -53,6 +54,7 @@ interface AssetRecord {
   tripo_task_id: string | null;
   glb_path: string | null;
   error: string | null;
+  retries: number;
   created_at: number;
 }
 
@@ -74,6 +76,7 @@ function toAsset(record: AssetRecord): AssetRow {
     generationId: record.generation_id,
     slotId: record.slot_id,
     status: record.status as AssetStatus,
+    retries: record.retries ?? 0,
     createdAt: record.created_at,
   };
   if (record.tripo_task_id) asset.tripoTaskId = record.tripo_task_id;
@@ -195,6 +198,13 @@ export function findCachedAsset(
     )
     .get(imageHash, slotId) as { glb_path: string } | undefined;
   return record?.glb_path;
+}
+
+export function markAssetRetry(db: Db, id: string): number {
+  const record = db
+    .prepare("UPDATE assets SET retries = retries + 1 WHERE id = ? RETURNING retries")
+    .get(id) as { retries: number } | undefined;
+  return record?.retries ?? 0;
 }
 
 export function listGenerations(db: Db, limit = 50): GenerationRow[] {

@@ -90,6 +90,10 @@ export function createTripoClient(opts: {
           texture: true,
           pbr: true,
           auto_size: true,
+          orientation: "align_image",
+          enable_image_autofix: true,
+          texture_alignment: "original_image",
+          ...(input.smartLowPoly ? { smart_low_poly: true } : {}),
           file: { type: input.fileType ?? "jpg", file_token: input.fileToken },
         }),
       });

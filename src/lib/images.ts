@@ -62,18 +62,26 @@ export async function cropEntity(
   const w = clamp01(bbox.w);
   const h = clamp01(bbox.h);
 
-  let left = Math.min(Math.round(x * imageWidth), imageWidth - MIN_SIDE);
-  let top = Math.min(Math.round(y * imageHeight), imageHeight - MIN_SIDE);
+  // Pad the box so subjects aren't clipped by the AI's bounding box.
+  const padX = w * 0.05;
+  const padY = h * 0.05;
+  const px = clamp01(x - padX);
+  const py = clamp01(y - padY);
+  const pw = clamp01(w + padX * 2);
+  const ph = clamp01(h + padY * 2);
+
+  let left = Math.min(Math.round(px * imageWidth), imageWidth - MIN_SIDE);
+  let top = Math.min(Math.round(py * imageHeight), imageHeight - MIN_SIDE);
   left = Math.max(0, left);
   top = Math.max(0, top);
 
   const width = Math.max(
     MIN_SIDE,
-    Math.min(Math.round(w * imageWidth), imageWidth - left),
+    Math.min(Math.round(pw * imageWidth), imageWidth - left),
   );
   const height = Math.max(
     MIN_SIDE,
-    Math.min(Math.round(h * imageHeight), imageHeight - top),
+    Math.min(Math.round(ph * imageHeight), imageHeight - top),
   );
 
   return sharp(buf)

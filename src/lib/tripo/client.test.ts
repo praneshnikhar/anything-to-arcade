@@ -52,6 +52,30 @@ describe("createTripoClient", () => {
       face_limit: 10000,
       file: { type: "jpg", file_token: "ft_1" },
     });
+    expect(sent).toMatchObject({
+      orientation: "align_image",
+      enable_image_autofix: true,
+      texture_alignment: "original_image",
+    });
+    expect(sent).not.toHaveProperty("smart_low_poly");
+  });
+
+  it("adds smart_low_poly when requested for a retry", async () => {
+    let sent: Record<string, unknown> | undefined;
+    const fake = (async (_url: string | URL | Request, init?: RequestInit) => {
+      sent = JSON.parse(String(init?.body));
+      return jsonResponse({ code: 0, data: { task_id: "t1" } });
+    }) as typeof fetch;
+
+    const client = createTripoClient({ apiKey: "k", fetchImpl: fake });
+    await client.createImageToModelTask({
+      fileToken: "ft_1",
+      faceLimit: 10000,
+      modelVersion: "v2.5-20250123",
+      smartLowPoly: true,
+    });
+
+    expect(sent).toMatchObject({ smart_low_poly: true });
   });
 
   it("maps a successful task to a model url", async () => {

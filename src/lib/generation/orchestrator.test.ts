@@ -16,6 +16,7 @@ import type { ScenePlan } from "@/lib/planner/schema";
 import type { TripoClient } from "@/lib/tripo/types";
 import {
   RegenerationLimitError,
+  isGeneratable,
   reconcileGeneration,
   regenerateSlot,
   startBuild,
@@ -78,6 +79,38 @@ function ageAsset(db: Db, assetId: string, ms: number) {
     assetId,
   );
 }
+
+describe("isGeneratable", () => {
+  it("rejects entities whose bounding box is too small", () => {
+    expect(
+      isGeneratable({
+        slotId: "a",
+        label: "a",
+        role: "scenery",
+        bbox: { x: 0.5, y: 0.5, w: 0.05, h: 0.05 },
+        useForGeneration: true,
+      }),
+    ).toBe(false);
+    expect(
+      isGeneratable({
+        slotId: "a",
+        label: "a",
+        role: "scenery",
+        bbox: { x: 0.1, y: 0.1, w: 0.3, h: 0.3 },
+        useForGeneration: true,
+      }),
+    ).toBe(true);
+    expect(
+      isGeneratable({
+        slotId: "a",
+        label: "a",
+        role: "terrain",
+        bbox: { x: 0, y: 0, w: 1, h: 1 },
+        useForGeneration: false,
+      }),
+    ).toBe(false);
+  });
+});
 
 describe("startBuild", () => {
   it("reuses cached assets without calling tripo and re-serves them under the new generation", async () => {
@@ -261,6 +294,71 @@ describe("reconcileGeneration", () => {
     });
 
     expect(view.assets).toHaveLength(1);
+  });
+
+  it("retries a failed generation once with smart low poly", async () => {
+    const { db, dataDir } = await setup();
+    let creates = 0;
+    const createdTasks: Array<{ faceLimit: number; smartLowPoly?: boolean }> =
+      [];
+    const tripo: TripoClient = {
+      uploadImage: async () => ({ fileToken: "ft" }),
+      createImageToModelTask: async (taskInput) => {
+        createdTasks.push({
+          faceLimit: taskInput.faceLimit,
+          smartLowPoly: taskInput.smartLowPoly,
+        });
+        creates += 1;
+        return { taskId: creates === 1 ? "t1" : "t2" };
+      },
+      getTask: async (taskId) =>
+        taskId === "t1"
+          ? { taskId: "t1", status: "failed", progress: 0, error: "boom" }
+          : {
+              taskId: "t2",
+              status: "success",
+              progress: 100,
+              modelUrl: "https://cdn.example/m.glb",
+            },
+    };
+
+    await startBuild({
+      db,
+      dataDir,
+      tripo,
+      modelVersion: "v2.5-20250123",
+      generationId: "gen1",
+    });
+
+    const fakeFetch = (async () =>
+      new Response(Buffer.from("glb"), { status: 200 })) as unknown as typeof fetch;
+
+    // First reconcile: t1 fails → retry creates t2 (still generating).
+    await reconcileGeneration({
+      db,
+      dataDir,
+      tripo,
+      modelVersion: "v2.5-20250123",
+      generationId: "gen1",
+      fetchImpl: fakeFetch,
+    });
+    // Second reconcile: t2 succeeds → ready.
+    const view = await reconcileGeneration({
+      db,
+      dataDir,
+      tripo,
+      modelVersion: "v2.5-20250123",
+      generationId: "gen1",
+      fetchImpl: fakeFetch,
+    });
+
+    expect(createdTasks[1]).toMatchObject({
+      smartLowPoly: true,
+      faceLimit: 20000,
+    });
+    expect(view.assets[0].status).toBe("ready");
+    expect(listAssets(db, "gen1")[0].retries).toBe(1);
+    expect(view.status).toBe("ready");
   });
 });
 

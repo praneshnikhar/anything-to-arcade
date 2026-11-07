@@ -69,8 +69,11 @@ describe("cropEntity", () => {
     const crop = await cropEntity(png, { x: 0.25, y: 0.25, w: 0.5, h: 0.5 });
     const meta = await sharp(crop).metadata();
 
-    expect(meta.width).toBe(50);
-    expect(meta.height).toBe(50);
+    // 10% padding expands the 50×50 center to ~55×55.
+    expect(meta.width).toBeGreaterThan(50);
+    expect(meta.width).toBeLessThanOrEqual(60);
+    expect(meta.height).toBeGreaterThan(50);
+    expect(meta.height).toBeLessThanOrEqual(60);
   });
 
   it("enforces a 32px minimum side", async () => {

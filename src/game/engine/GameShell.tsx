@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { ScenePlan } from "@/lib/planner/schema";
 import { createInputState } from "./controls";
 import { fixedSteps } from "./loop";
@@ -45,10 +46,16 @@ export default function GameShell({
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(host.clientWidth, host.clientHeight);
     renderer.shadowMap.enabled = true;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     host.appendChild(renderer.domElement);
 
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x334155, 1.1));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x334155, 0.6));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.3);
     sun.position.set(6, 12, 8);
     sun.castShadow = true;
     scene.add(sun);
@@ -117,6 +124,7 @@ export default function GameShell({
       window.removeEventListener("resize", onResize);
       input.dispose();
       instance.dispose();
+      pmrem.dispose();
       renderer.dispose();
       if (renderer.domElement.parentElement === host) {
         host.removeChild(renderer.domElement);

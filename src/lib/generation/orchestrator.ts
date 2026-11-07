@@ -5,6 +5,7 @@ import {
   getGeneration,
   insertAsset,
   listAssets,
+  markAssetRetry,
   setGenerationStatus,
   updateAsset,
   type AssetRow,
@@ -51,7 +52,16 @@ export interface BuildDeps extends OrchestratorDeps {
 }
 
 function faceLimitFor(role: string): number {
-  return HERO_ROLES.has(role) ? 20000 : 10000;
+  return HERO_ROLES.has(role) ? 40000 : 20000;
+}
+
+const MIN_ENTITY_AREA = 0.008;
+
+export function isGeneratable(entity: PlanEntity): boolean {
+  return (
+    entity.useForGeneration &&
+    entity.bbox.w * entity.bbox.h >= MIN_ENTITY_AREA
+  );
 }
 
 function parsePlan(generation: GenerationRow): ScenePlan {
@@ -118,8 +128,52 @@ async function createOrReuseAsset(
 
 function finalizeIfDone(db: Db, generationId: string): void {
   const assets = listAssets(db, generationId);
-  if (assets.length > 0 && assets.every((asset) => isTerminalAsset(asset.status))) {
+  if (
+    assets.length > 0 &&
+    assets.every((asset) => isTerminalAsset(asset.status))
+  ) {
     setGenerationStatus(db, generationId, "ready");
+  }
+}
+
+async function retryAsset(
+  input: OrchestratorDeps & { modelVersion?: string },
+  generation: GenerationRow,
+  asset: AssetRow,
+  reason?: string,
+): Promise<void> {
+  markAssetRetry(input.db, asset.id);
+  try {
+    const entity = parsePlan(generation).entities.find(
+      (candidate) => candidate.slotId === asset.slotId,
+    );
+    if (!entity) throw new Error("Unknown slot");
+
+    const crop = await cropEntity(
+      await readFile(generation.imagePath),
+      entity.bbox,
+    );
+    const { fileToken } = await input.tripo.uploadImage(
+      crop,
+      `${asset.slotId}-retry.jpg`,
+    );
+    const { taskId } = await input.tripo.createImageToModelTask({
+      fileToken,
+      faceLimit: Math.max(5000, Math.floor(faceLimitFor(entity.role) / 2)),
+      modelVersion: input.modelVersion ?? "",
+      fileType: "jpg",
+      smartLowPoly: true,
+    });
+    updateAsset(input.db, asset.id, {
+      status: "generating",
+      error: null,
+      tripoTaskId: taskId,
+    });
+  } catch (error) {
+    updateAsset(input.db, asset.id, {
+      status: "placeholder",
+      error: `Retry failed: ${error instanceof Error ? error.message : reason ?? "unknown"}`,
+    });
   }
 }
 
@@ -134,9 +188,7 @@ export async function startBuild(
   const plan = parsePlan(generation);
   setGenerationStatus(input.db, generation.id, "building");
 
-  const entities = plan.entities
-    .filter((entity) => entity.useForGeneration)
-    .slice(0, MAX_GENERATED_ENTITIES);
+  const entities = plan.entities.filter(isGeneratable).slice(0, MAX_GENERATED_ENTITIES);
 
   if (entities.length === 0) {
     setGenerationStatus(input.db, generation.id, "ready");
@@ -229,6 +281,10 @@ export async function reconcileGeneration(
       }
 
       if (TERMINAL_TASK_STATUSES.has(task.status)) {
+        if (asset.retries < 1 && input.modelVersion) {
+          await retryAsset(input, generation, asset, task.error);
+          continue;
+        }
         updateAsset(input.db, asset.id, {
           status: "placeholder",
           error: task.error ?? `Task ${task.status}`,

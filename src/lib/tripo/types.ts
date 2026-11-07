@@ -23,6 +23,7 @@ export interface TripoClient {
     faceLimit: number;
     modelVersion: string;
     fileType?: "jpg" | "png" | "webp";
+    smartLowPoly?: boolean;
   }): Promise<{ taskId: string }>;
   getTask(taskId: string): Promise<TripoTask>;
 }

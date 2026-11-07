@@ -26,10 +26,17 @@ export function openDb(dataDir: string): Db {
       tripo_task_id TEXT,
       glb_path TEXT,
       error TEXT,
+      retries INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_assets_gen ON assets(generation_id);
     CREATE INDEX IF NOT EXISTS idx_gen_hash ON generations(image_hash);
   `);
+  // Migrate databases created before the retry ladder existed.
+  try {
+    db.exec("ALTER TABLE assets ADD COLUMN retries INTEGER NOT NULL DEFAULT 0");
+  } catch {
+    // Column already present — nothing to do.
+  }
   return db;
 }
